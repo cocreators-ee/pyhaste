@@ -1,0 +1,58 @@
+name: Build and upload to PyPI
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  build_and_upload:
+    name: Build and upload
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+        id-token: write
+        contents: write
+    steps:
+      - name: Checkout 🔁
+        uses: actions/checkout@v3
+
+      - name: Set up Python 🐍
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry and pre-commit 💈
+        run: pip install poetry pre-commit
+
+      - name: Install dependencies 🛠
+        run: poetry install
+
+      - name: Run pre-commit 🤔
+        run: pre-commit run --all-files
+
+      - name: Run tests 🌈
+        run: poetry run pytest
+
+      - name: Build package for PyPI 🙌
+        run: |
+          TAG=$(git tag --points-at HEAD | head -n1)
+          sed -Ei 's/^version = "[^"]+"/version = "'${TAG}'"/' pyproject.toml
+          poetry build
+
+      - name: Publish to PyPi 🚀
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Update version 🔼
+        run: |
+          TAG=$(git tag --points-at HEAD | head -n1)
+          git config --global user.name "GitHub"
+          git config --global user.email "${BOT_EMAIL}"
+
+          git add pyproject.toml
+          git commit -m "Updated version to ${TAG}"
+
+          git push origin HEAD:main
+        env:
+          BOT_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        if: success()
