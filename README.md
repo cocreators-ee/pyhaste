@@ -13,7 +13,6 @@ Python code speed analyzer.
 
 Monitor the performance of your scripts etc. tools and understand where time is spent.
 
-
 ## Installation
 
 It's a Python library, what do you expect?
@@ -83,16 +82,16 @@ from random import uniform
 from pyhaste import Analyzer
 
 for item in [1, 2, 3]:
-    analyzer = Analyzer()
-    with analyzer.measure("process_item"):
-        with analyzer.measure("db.find"):
-          time.sleep(uniform(0.04, 0.06) * item)
-        with analyzer.measure("calculate"):
-          time.sleep(uniform(0.1, 0.15) * item)
-        with analyzer.measure("save"):
-          time.sleep(uniform(0.05, 0.075) * item)
-    time.sleep(uniform(0.01, 0.025) * item)
-    analyzer.report()
+  analyzer = Analyzer()
+  with analyzer.measure(f"process_item({item})"):
+    with analyzer.measure("db.find"):
+      time.sleep(uniform(0.04, 0.06) * item)
+    with analyzer.measure("calculate"):
+      time.sleep(uniform(0.1, 0.15) * item)
+    with analyzer.measure("save"):
+      time.sleep(uniform(0.05, 0.075) * item)
+  time.sleep(uniform(0.01, 0.025) * item)
+  analyzer.report()
 ```
 
 ```

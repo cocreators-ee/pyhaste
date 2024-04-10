@@ -5,27 +5,27 @@ from pyhaste import measure, report
 
 
 def prepare():
-    print(f"Preparing")
+    print("Preparing")
     time.sleep(uniform(0.5, 1.5))
 
 
 def find_items():
     with measure("db.find"):
         print("Finding items")
-        time.sleep(uniform(0.1, .3))
+        time.sleep(uniform(0.1, 0.3))
         return [1, 2, 3]
 
 
 def process_item(item: int):
     with measure("process_item"):
         print(f"Processing {item}")
-        time.sleep(uniform(0.05, .25))
-        return item ** 2
+        time.sleep(uniform(0.05, 0.25))
+        return item**2
 
 
 def save_item():
     with measure("db.save"):
-        print(f"Saving items")
+        print("Saving items")
         time.sleep(uniform(0.01, 0.02))
 
 

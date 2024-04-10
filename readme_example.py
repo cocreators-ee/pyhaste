@@ -1,7 +1,7 @@
 import time
 from random import uniform
 
-from pyhaste import measure, report, Analyzer
+from pyhaste import Analyzer, measure, report
 
 
 def prepare_task():

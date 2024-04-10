@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 from time import perf_counter
-from typing import Tuple, Iterable
+from typing import Iterable, Tuple
 
 from rich.console import Console
 from rich.table import Table
