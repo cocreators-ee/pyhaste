@@ -9,7 +9,7 @@
 
 Python code speed analyzer.
 
-![PyHaste screenshot](pyhaste.png)
+![PyHaste screenshot](https://github.com/cocreators-ee/pyhaste/raw/main/pyhaste.png)
 
 Monitor the performance of your scripts etc. tools and understand where time is spent.
 
