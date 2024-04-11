@@ -27,13 +27,15 @@ def sort_items(items: Iterable[Item]):
 
 
 class Analyzer:
-    counters: dict[str, float]
-    total: float
+    counters: dict[str, int]
+    timers: dict[str, float]
+    total_time: float
     nested: list[str]
 
     def __init__(self):
         self.counters = {}
-        self.total = 0.0
+        self.timers = {}
+        self.total_time = 0.0
         self.start_time = None
         self.nested = []
 
@@ -44,14 +46,15 @@ class Analyzer:
             self.start_time = start
 
         self.nested.append(name)
-        counter_name = SEP.join(self.nested)
+        key = SEP.join(self.nested)
         yield
         self.nested.pop()
 
         elapsed = perf_counter() - start
-        self.counters[counter_name] = elapsed + self.counters.get(counter_name, 0.0)
+        self.counters[key] = 1 + self.counters.get(key, 0.0)
+        self.timers[key] = elapsed + self.timers.get(key, 0.0)
         if not self.nested:
-            self.total += elapsed
+            self.total_time += elapsed
 
     def measure_wrap(self, name):
         def decorator(f):
@@ -70,33 +73,38 @@ class Analyzer:
             return ""
 
         parent_name = SEP.join(parts[:-1])
-        parent_total = self.counters[parent_name]
+        parent_total = self.timers[parent_name]
 
         pct = (elapsed / parent_total) * 100
         return f"{pct:.2f}%"
 
     def report(self):
         total_elapsed = perf_counter() - self.start_time
-        self.counters["Unmeasured"] = total_elapsed - self.total
-        self.total += self.counters["Unmeasured"]
+        self.timers["Unmeasured"] = total_elapsed - self.total_time
+        self.total_time += self.timers["Unmeasured"]
 
         tbl = Table()
         tbl.add_column("Name", style="bright_green")
         tbl.add_column("Time", style="bright_magenta", justify="right", no_wrap=True)
         tbl.add_column("Tot %", style="bright_blue", justify="right", no_wrap=True)
         tbl.add_column("Rel %", style="bright_yellow", justify="right", no_wrap=True)
+        tbl.add_column("Calls", style="cyan", justify="right", no_wrap=True)
 
-        for name, elapsed in sort_items(self.counters.items()):
-            pct = (elapsed / self.total) * 100
+        for name, elapsed in sort_items(self.timers.items()):
+            pct = (elapsed / self.total_time) * 100
+            count = ""
+            if name in self.counters:
+                count = f"{self.counters[name]:,.0f}"
             tbl.add_row(
                 " [blue]›[/blue]".join(name.split(SEP)),
                 format_elapsed(elapsed),
                 f"{pct:.2f}%",
                 self.get_parent_pct(name, elapsed),
+                count,
             )
 
         tbl.add_section()
-        tbl.add_row("Total", format_elapsed(self.total), "100%", "")
+        tbl.add_row("Total", format_elapsed(self.total_time), "100%", "", "")
 
         console.print("")
         console.rule("[bold red]PyHaste report", style="green")

@@ -9,6 +9,6 @@ def test_analyzer():
         time.sleep(0.01)
     time.sleep(0.01)
     analyzer.report()
-    assert analyzer.counters["start"] >= 0.01
-    assert analyzer.counters["Unmeasured"] >= 0.01
-    assert analyzer.counters["Unmeasured"] <= 0.02
+    assert analyzer.timers["start"] >= 0.01
+    assert analyzer.timers["Unmeasured"] >= 0.01
+    assert analyzer.timers["Unmeasured"] <= 0.02
