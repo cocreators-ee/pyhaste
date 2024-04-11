@@ -30,48 +30,49 @@ To measure your code, `pyhaste` exports a `measure` context manager, give it a n
 ```python
 import time
 
-from pyhaste import measure, report
+from pyhaste import measure, report, measure_wrap
 
 
+@measure_wrap("prepare_task")
 def prepare_task():
   time.sleep(0.1)
 
 
+@measure_wrap("find_items")
 def find_items():
-  with measure("find_items"):
-    return [1, 2, 3]
+  return [1, 2, 3]
 
 
+@measure_wrap("process_item")
 def process_item(item):
-  with measure("process_item"):
-    time.sleep(item * 0.1)
+  time.sleep(item * 0.1)
 
 
 with measure("task"):
-  with measure("prepare"):
-    prepare_task()
+  prepare_task()
 
   for item in find_items():
     process_item(item)
 
 time.sleep(0.01)
 report()
+
 ```
 
 ```
 ───────────────── PyHaste report ─────────────────
 
-┏━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━┓
-┃ Name                 ┃    Time ┃      % ┃
-┡━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━┩
-│ task                 │ 0.700 s │ 98.58% │
-│ task -> process_item │ 0.600 s │ 84.49% │
-│ task -> prepare      │ 0.100 s │ 14.09% │
-│ Unmeasured           │ 0.010 s │  1.42% │
-│ task -> find_items   │ 0.000 s │  0.00% │
-├──────────────────────┼─────────┼────────┤
-│ Total                │ 0.710 s │   100% │
-└──────────────────────┴─────────┴────────┘
+┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━┳━━━━━━━━┓
+┃ Name               ┃    Time ┃  Tot % ┃  Rel % ┃
+┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━╇━━━━━━━━┩
+│ task               │ 0.700 s │ 98.58% │        │
+│ task ›process_item │ 0.600 s │ 84.49% │ 85.70% │
+│ task ›prepare_task │ 0.100 s │ 14.09% │ 14.29% │
+│ Unmeasured         │ 0.010 s │  1.42% │        │
+│ task ›find_items   │ 0.000 s │  0.00% │  0.00% │
+├────────────────────┼─────────┼────────┼────────┤
+│ Total              │ 0.710 s │   100% │        │
+└────────────────────┴─────────┴────────┴────────┘
 ```
 
 In case you need more complex analysis, you might benefit from `pyhaste.Analyzer` and creating your own instances, e.g. for measuring time spent on separate tasks in a longer running job:
@@ -87,7 +88,9 @@ for item in [1, 2, 3]:
     with analyzer.measure("db.find"):
       time.sleep(uniform(0.04, 0.06) * item)
     with analyzer.measure("calculate"):
-      time.sleep(uniform(0.1, 0.15) * item)
+      with analyzer.measure("guestimate"):
+        with analyzer.measure("do_math"):
+          time.sleep(uniform(0.1, 0.15) * item)
     with analyzer.measure("save"):
       time.sleep(uniform(0.05, 0.075) * item)
   time.sleep(uniform(0.01, 0.025) * item)
@@ -95,47 +98,53 @@ for item in [1, 2, 3]:
 ```
 
 ```
-─────────────────── PyHaste report ────────────────────
+──────────────────────────────── PyHaste report ────────────────────────────────
 
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━┓
-┃ Name                         ┃    Time ┃      % ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━┩
-│ process_item(1)              │ 0.217 s │ 91.81% │
-│ process_item(1) -> calculate │ 0.108 s │ 45.87% │
-│ process_item(1) -> save      │ 0.054 s │ 22.97% │
-│ process_item(1) -> db.find   │ 0.054 s │ 22.95% │
-│ Unmeasured                   │ 0.019 s │  8.19% │
-├──────────────────────────────┼─────────┼────────┤
-│ Total                        │ 0.236 s │   100% │
-└──────────────────────────────┴─────────┴────────┘
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━┓
+┃ Name                                            ┃    Time ┃  Tot % ┃   Rel % ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━┩
+│ process_item(1)                                 │ 0.235 s │ 95.78% │         │
+│ process_item(1) ›calculate                      │ 0.121 s │ 49.36% │  51.53% │
+│ process_item(1) ›calculate ›guestimate          │ 0.121 s │ 49.36% │ 100.00% │
+│ process_item(1) ›calculate ›guestimate ›do_math │ 0.121 s │ 49.35% │  99.99% │
+│ process_item(1) ›save                           │ 0.071 s │ 29.19% │  30.48% │
+│ process_item(1) ›db.find                        │ 0.042 s │ 17.22% │  17.98% │
+│ Unmeasured                                      │ 0.010 s │  4.22% │         │
+├─────────────────────────────────────────────────┼─────────┼────────┼─────────┤
+│ Total                                           │ 0.245 s │   100% │         │
+└─────────────────────────────────────────────────┴─────────┴────────┴─────────┘
 
-─────────────────── PyHaste report ────────────────────
+──────────────────────────────── PyHaste report ────────────────────────────────
 
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━┓
-┃ Name                         ┃    Time ┃      % ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━┩
-│ process_item(2)              │ 0.465 s │ 92.61% │
-│ process_item(2) -> calculate │ 0.214 s │ 42.68% │
-│ process_item(2) -> save      │ 0.139 s │ 27.77% │
-│ process_item(2) -> db.find   │ 0.111 s │ 22.15% │
-│ Unmeasured                   │ 0.037 s │  7.39% │
-├──────────────────────────────┼─────────┼────────┤
-│ Total                        │ 0.502 s │   100% │
-└──────────────────────────────┴─────────┴────────┘
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━┓
+┃ Name                                            ┃    Time ┃  Tot % ┃   Rel % ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━┩
+│ process_item(2)                                 │ 0.505 s │ 95.09% │         │
+│ process_item(2) ›calculate                      │ 0.284 s │ 53.37% │  56.13% │
+│ process_item(2) ›calculate ›guestimate          │ 0.284 s │ 53.37% │ 100.00% │
+│ process_item(2) ›calculate ›guestimate ›do_math │ 0.284 s │ 53.37% │ 100.00% │
+│ process_item(2) ›save                           │ 0.130 s │ 24.45% │  25.71% │
+│ process_item(2) ›db.find                        │ 0.092 s │ 17.26% │  18.16% │
+│ Unmeasured                                      │ 0.026 s │  4.91% │         │
+├─────────────────────────────────────────────────┼─────────┼────────┼─────────┤
+│ Total                                           │ 0.531 s │   100% │         │
+└─────────────────────────────────────────────────┴─────────┴────────┴─────────┘
 
-─────────────────── PyHaste report ────────────────────
+──────────────────────────────── PyHaste report ────────────────────────────────
 
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━┓
-┃ Name                         ┃    Time ┃      % ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━┩
-│ process_item(3)              │ 0.759 s │ 93.85% │
-│ process_item(3) -> calculate │ 0.424 s │ 52.34% │
-│ process_item(3) -> save      │ 0.178 s │ 21.99% │
-│ process_item(3) -> db.find   │ 0.158 s │ 19.51% │
-│ Unmeasured                   │ 0.050 s │  6.15% │
-├──────────────────────────────┼─────────┼────────┤
-│ Total                        │ 0.809 s │   100% │
-└──────────────────────────────┴─────────┴────────┘
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━┓
+┃ Name                                            ┃    Time ┃  Tot % ┃   Rel % ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━┩
+│ process_item(3)                                 │ 0.671 s │ 95.36% │         │
+│ process_item(3) ›calculate                      │ 0.330 s │ 46.87% │  49.15% │
+│ process_item(3) ›calculate ›guestimate          │ 0.330 s │ 46.87% │ 100.00% │
+│ process_item(3) ›calculate ›guestimate ›do_math │ 0.330 s │ 46.87% │ 100.00% │
+│ process_item(3) ›save                           │ 0.196 s │ 27.87% │  29.22% │
+│ process_item(3) ›db.find                        │ 0.145 s │ 20.62% │  21.62% │
+│ Unmeasured                                      │ 0.033 s │  4.64% │         │
+├─────────────────────────────────────────────────┼─────────┼────────┼─────────┤
+│ Total                                           │ 0.704 s │   100% │         │
+└─────────────────────────────────────────────────┴─────────┴────────┴─────────┘
 ```
 
 ## Development
