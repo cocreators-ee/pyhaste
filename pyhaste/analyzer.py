@@ -89,18 +89,22 @@ class Analyzer:
         tbl.add_column("Tot %", style="bright_blue", justify="right", no_wrap=True)
         tbl.add_column("Rel %", style="bright_yellow", justify="right", no_wrap=True)
         tbl.add_column("Calls", style="cyan", justify="right", no_wrap=True)
+        tbl.add_column("Per call", style="bright_magenta", justify="right", no_wrap=True)
 
         for name, elapsed in sort_items(self.timers.items()):
             pct = (elapsed / self.total_time) * 100
             count = ""
+            per_call = ""
             if name in self.counters:
                 count = f"{self.counters[name]:,.0f}"
+                per_call = format_elapsed(elapsed / self.counters[name])
             tbl.add_row(
                 " [blue]›[/blue]".join(name.split(SEP)),
                 format_elapsed(elapsed),
                 f"{pct:.2f}%",
                 self.get_parent_pct(name, elapsed),
                 count,
+                per_call,
             )
 
         tbl.add_section()
