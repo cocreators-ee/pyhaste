@@ -47,14 +47,17 @@ class Analyzer:
 
         self.nested.append(name)
         key = SEP.join(self.nested)
-        yield
-        self.nested.pop()
 
-        elapsed = perf_counter() - start
-        self.counters[key] = 1 + self.counters.get(key, 0.0)
-        self.timers[key] = elapsed + self.timers.get(key, 0.0)
-        if not self.nested:
-            self.total_time += elapsed
+        try:
+            yield
+        finally:
+            self.nested.pop()
+
+            elapsed = perf_counter() - start
+            self.counters[key] = 1 + self.counters.get(key, 0.0)
+            self.timers[key] = elapsed + self.timers.get(key, 0.0)
+            if not self.nested:
+                self.total_time += elapsed
 
     def measure_wrap(self, name):
         def decorator(f):
