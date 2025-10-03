@@ -8,21 +8,16 @@ from rich.table import Table
 from pyhaste.common import format_elapsed, sort_items
 
 console = Console()
-SEP = " -> "
 
 
-class Analyzer:
+class AsyncAnalyzer:
     counters: dict[str, int]
     timers: dict[str, float]
-    total_time: float
-    nested: list[str]
 
     def __init__(self):
         self.counters = {}
         self.timers = {}
-        self.total_time = 0.0
-        self.start_time = None
-        self.nested = []
+        self.start_time = perf_counter()
 
     @contextmanager
     def measure(self, name):
@@ -30,19 +25,12 @@ class Analyzer:
         if not self.start_time:
             self.start_time = start
 
-        self.nested.append(name)
-        key = SEP.join(self.nested)
-
         try:
             yield
         finally:
-            self.nested.pop()
-
             elapsed = perf_counter() - start
-            self.counters[key] = 1 + self.counters.get(key, 0.0)
-            self.timers[key] = elapsed + self.timers.get(key, 0.0)
-            if not self.nested:
-                self.total_time += elapsed
+            self.counters[name] = 1 + self.counters.get(name, 0.0)
+            self.timers[name] = elapsed + self.timers.get(name, 0.0)
 
     def measure_wrap(self, name):
         def decorator(f):
@@ -55,50 +43,55 @@ class Analyzer:
 
         return decorator
 
-    def get_parent_pct(self, name, elapsed):
-        parts = name.split(SEP)
-        if len(parts) == 1:
-            return ""
+    def measure_wrap_async(self, name):
+        def decorator(f):
+            @wraps(f)
+            async def wrapper(*args, **kwargs):
+                with self.measure(name):
+                    return await f(*args, **kwargs)
 
-        parent_name = SEP.join(parts[:-1])
-        parent_total = self.timers[parent_name]
+            return wrapper
 
-        pct = (elapsed / parent_total) * 100
-        return f"{pct:.2f}%"
+        return decorator
 
     def report(self):
-        total_elapsed = perf_counter() - self.start_time
-        self.timers["Unmeasured"] = total_elapsed - self.total_time
-        self.total_time += self.timers["Unmeasured"]
+        # Largest time is as close to total time we can get
+        max_time = max(*self.timers.values())
 
         tbl = Table()
         tbl.add_column("Name", style="bright_green")
         tbl.add_column("Time", style="bright_magenta", justify="right", no_wrap=True)
         tbl.add_column("Tot %", style="bright_blue", justify="right", no_wrap=True)
-        tbl.add_column("Rel %", style="bright_yellow", justify="right", no_wrap=True)
         tbl.add_column("Calls", style="cyan", justify="right", no_wrap=True)
         tbl.add_column("Per call", style="bright_magenta", justify="right", no_wrap=True)
 
         for name, elapsed in sort_items(self.timers.items()):
-            pct = (elapsed / self.total_time) * 100
+            pct = (elapsed / max_time) * 100
             count = ""
             per_call = ""
             if name in self.counters:
                 count = f"{self.counters[name]:,.0f}"
                 per_call = format_elapsed(elapsed / self.counters[name])
             tbl.add_row(
-                " [blue]›[/blue]".join(name.split(SEP)),
+                name,
                 format_elapsed(elapsed),
                 f"{pct:.2f}%",
-                self.get_parent_pct(name, elapsed),
                 count,
                 per_call,
             )
 
         tbl.add_section()
-        tbl.add_row("Total", format_elapsed(self.total_time), "100%", "", "")
+        tbl.add_row("Max", format_elapsed(max_time), "100%", "", "")
 
         console.print("")
         console.rule("[bold red]PyHaste report", style="green")
         console.print("")
         console.print(tbl)
+
+
+_ANALYZER = AsyncAnalyzer()
+
+measure = _ANALYZER.measure
+measure_wrap = _ANALYZER.measure_wrap
+measure_wrap_async = _ANALYZER.measure_wrap_async
+report = _ANALYZER.report

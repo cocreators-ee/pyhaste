@@ -23,9 +23,9 @@ pip install pyhaste
 poetry add pyhaste
 ```
 
-## Usage
+## Normal usage
 
-To measure your code, `pyhaste` exports a `measure` context manager, give it a name as an argument. Once you want a report call `report` from `pyhaste`.
+To measure your code, `pyhaste` exports a `measure` context manager, give it a name as an argument. Alternatively wrap functions in `measure_wrap` with the name as an argument. Once you want a report call `report` from `pyhaste`.
 
 ```python
 import time
@@ -146,6 +146,14 @@ for item in [1, 2, 3]:
 │ Total                                           │ 0.803 s │   100% │         │       │          │
 └─────────────────────────────────────────────────┴─────────┴────────┴─────────┴───────┴──────────┘
 ```
+
+## Async usage and FastAPI example
+
+Async Python causes some problems for following the stack, so we can't create these nested call stacks and relative calculations automatically. If you're ok with just making sure your names have the necessary degree of identification in some other way, you can use the async version by importing from `pyhaste.async_analyzer`. There's also an additional `measure_wrap_async`.
+
+See [pyhaste_async_demo.py](./pyhaste_async_demo.py) and the [FastAPI demo](./fastapi_demo/pyhaste_fastapi_demo.py) for usage examples.
+
+If you've got good ideas on how we can reliably track the call stack context in `async` Python code please do share 🙂
 
 ## Development
 
